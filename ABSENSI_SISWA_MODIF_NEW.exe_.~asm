@@ -1,0 +1,1058 @@
+.model small
+.stack 100h
+
+.data
+
+; =========================================
+; TAMPILAN UTAMA & HEADER
+; =========================================
+judul           db 13,10,'+=================================================+$'
+menu1           db 13,10,'|              SISTEM ABSENSI SISWA               |$'
+menu2           db 13,10,'+=================================================+$'
+
+pilihanMenu     db 13,10
+db '1. Input Absensi',13,10
+db '2. Lihat Semua Rekap',13,10
+db '3. Statistik Kehadiran',13,10
+db '4. Cari Siswa (via NIS)',13,10
+db '5. Edit Data Siswa',13,10
+db '6. Keluar Aplikasi',13,10
+db 'Pilih Menu [1-6] : $'
+
+; =========================================
+; INPUT PROMPT
+; =========================================
+inputNIS        db 13,10,'Masukkan NIS (Maks 4 digit) : $'
+inputNama       db 13,10,'Masukkan Nama               : $'
+inputCari       db 13,10,'Masukkan NIS yg dicari      : $'
+inputEdit       db 13,10,'Masukkan NIS yg akan diedit : $'
+teksEditMulai   db 13,10,'--- Masukkan Data Baru ---$'
+
+; =========================================
+; SUB-MENU SELECTION
+; =========================================
+pilihMapel      db 13,10,13,10
+db 'Pilih Mata Pelajaran:',13,10
+db '1. Bahasa Indonesia',13,10
+db '2. Matematika',13,10
+db '3. English',13,10
+db '4. Ekonomi',13,10
+db '5. Sejarah',13,10
+db '6. PPKN',13,10
+db '7. Informatika',13,10
+db '8. Biologi',13,10
+db '9. Fisika',13,10
+db 'A. Kimia',13,10
+db 'Pilihan : $'
+
+pilihKelas      db 13,10,13,10
+db 'Pilih Kelas:',13,10
+db '1. 10A',13,10
+db '2. 10B',13,10
+db '3. 10C',13,10
+db '4. 10D',13,10
+db '5. 10E',13,10
+db '6. 11A',13,10
+db '7. 11B',13,10
+db '8. 11C',13,10
+db '9. 11D',13,10
+db 'A. 11E',13,10
+db 'B. 12A',13,10
+db 'C. 12B',13,10
+db 'D. 12C',13,10
+db 'E. 12D',13,10
+db 'F. 12E',13,10
+db 'Pilihan : $'
+
+pilihStatus     db 13,10,13,10
+db 'Pilih Keterangan:',13,10
+db '1. HADIR',13,10
+db '2. SAKIT',13,10
+db '3. IZIN',13,10
+db 'Pilihan : $'
+
+; =========================================
+; NOTIFIKASI & FEEDBACK
+; =========================================
+statusHadir     db 13,10,'[System] Set Status -> HADIR$'
+statusSakit     db 13,10,'[System] Set Status -> SAKIT$'
+statusIzin      db 13,10,'[System] Set Status -> IZIN$'
+dataSimpan      db 13,10,'>> Data berhasil disimpan! $'
+dataDiubah      db 13,10,'>> Data siswa berhasil diperbarui! $'
+errInput        db 13,10,'[Error] Pilihan salah! Silakan coba lagi.$'
+errKosong       db 13,10,'[Error] Database masih kosong!$'
+
+teksRekap       db 13,10,'=====================================',13,10
+db '           REKAP DATA ABSENSI        ',13,10
+db '=====================================$'
+
+teksKetemu      db 13,10,'[Hasil] Data ditemukan:$'
+teksTidakKetemu db 13,10,'[Hasil] Data tidak ditemukan!$'
+
+teksStatistik   db 13,10,'=====================================',13,10
+db '          STATISTIK ABSENSI          ',13,10
+db '=====================================$'
+teksHadir       db 13,10,'Jumlah Hadir : $'
+teksSakit       db 13,10,'Jumlah Sakit : $'
+teksIzin        db 13,10,'Jumlah Izin  : $'
+teksTotal       db 13,10,'Total Data   : $'
+
+newline         db 13,10,'$'
+
+; =========================================
+; DATABASE ARRAY (MAKS 40 DATA)
+; =========================================
+maksData        equ 40
+dataNIS         db 200 dup('$')
+dataNama        db 1000 dup('$')
+dataStatus      db maksData dup(?)
+dataMapel       db maksData dup(?)
+dataKelas       db maksData dup(?)
+jumlahData      db 0
+
+; =========================================
+; VARIABEL TEMPORER
+; =========================================
+tempNIS         db 5 dup('$')
+tempNama        db 25 dup('$')
+tempMapel       db ?
+tempKelas       db ?
+tempStatus      db ?
+tempCari        db 5 dup('$')
+pilih           db ?
+isEditMode      db 0
+indeksEdit      db ?
+
+; =========================================
+; COUNTER STATISTIK
+; =========================================
+jmlHadir        db 0
+jmlSakit        db 0
+jmlIzin         db 0
+
+; =========================================
+; TEXT MAPPING DATA (STRINGS)
+; =========================================
+txtHadir        db 'HADIR$'
+txtSakit        db 'SAKIT$'
+txtIzin         db 'IZIN$'
+
+mp1             db 'Bahasa Indonesia$'
+mp2             db 'Matematika$'
+mp3             db 'English$'
+mp4             db 'Ekonomi$'
+mp5             db 'Sejarah$'
+mp6             db 'PPKN$'
+mp7             db 'Informatika$'
+mp8             db 'Biologi$'
+mp9             db 'Fisika$'
+mpA             db 'Kimia$'
+
+; Deklarasi dipisah per baris agar emu8086 tidak error
+k1              db '10A$'
+k2              db '10B$'
+k3              db '10C$'
+k4              db '10D$'
+k5              db '10E$'
+k6              db '11A$'
+k7              db '11B$'
+k8              db '11C$'
+k9              db '11D$'
+kA              db '11E$'
+kB              db '12A$'
+kC              db '12B$'
+kD              db '12C$'
+kE              db '12D$'
+kF              db '12E$'
+
+.code
+main proc
+mov ax,@data
+mov ds,ax
+mov es,ax
+
+; =========================================
+; MENU UTAMA LOOP
+; =========================================
+menu_utama:
+lea dx,judul
+mov ah,09h
+int 21h
+
+lea dx,menu1
+mov ah,09h
+int 21h
+
+lea dx,menu2
+mov ah,09h
+int 21h
+
+lea dx,pilihanMenu
+mov ah,09h
+int 21h
+
+mov ah,01h
+int 21h
+mov pilih,al
+
+cmp pilih,'1'
+je prep_input
+cmp pilih,'2'
+je lihat_rekap
+cmp pilih,'3'
+je statistik
+cmp pilih,'4'
+je menu_cari_siswa
+cmp pilih,'5'
+je menu_edit_siswa
+cmp pilih,'6'
+je keluar
+
+lea dx,errInput
+mov ah,09h
+int 21h
+jmp menu_utama
+
+prep_input:
+mov isEditMode, 0
+jmp input_absensi
+
+; =========================================
+; INPUT ABSENSI / EDIT DATA
+; =========================================
+input_absensi:
+cmp isEditMode, 1
+je b_input_nama
+
+mov al, jumlahData
+cmp al, maksData
+jae kembali_menu_utama
+
+; 1. INPUT NIS MULTI-DIGIT
+lea dx,inputNIS
+mov ah,09h
+int 21h
+lea di,tempNIS
+call input_string
+
+b_input_nama:
+; 2. INPUT NAMA
+lea dx,inputNama
+mov ah,09h
+int 21h
+lea di,tempNama
+call input_string
+
+; 3. PILIH KELAS
+input_kls_loop:
+lea dx,pilihKelas
+mov ah,09h
+int 21h
+mov ah,01h
+int 21h
+mov tempKelas,al
+
+cmp al,'1'
+jb err_kelas
+cmp al,'9'
+jbe input_mapel_loop
+cmp al,'A'
+jb err_kelas
+cmp al,'F'
+jbe input_mapel_loop
+err_kelas:
+lea dx,errInput
+mov ah,09h
+int 21h
+jmp input_kls_loop
+
+; 4. PILIH MAPEL
+input_mapel_loop:
+lea dx, newline
+mov ah, 09h
+int 21h
+lea dx,pilihMapel
+mov ah,09h
+int 21h
+mov ah,01h
+int 21h
+mov tempMapel,al
+
+cmp al,'1'
+jb err_mapel
+cmp al,'9'
+jbe input_status_loop
+cmp al,'A'
+je input_status_loop
+err_mapel:
+lea dx,errInput
+mov ah,09h
+int 21h
+jmp input_mapel_loop
+
+; 5. PILIH STATUS
+input_status_loop:
+lea dx,pilihStatus
+mov ah,09h
+int 21h
+mov ah,01h
+int 21h
+
+cmp al,'1'
+je status_hadir
+cmp al,'2'
+je status_sakit
+cmp al,'3'
+je status_izin
+
+lea dx,errInput
+mov ah,09h
+int 21h
+jmp input_status_loop
+
+kembali_menu_utama:
+jmp menu_utama
+
+status_hadir:
+mov tempStatus,'H'
+lea dx,statusHadir
+mov ah,09h
+int 21h
+jmp simpan_data
+
+status_sakit:
+mov tempStatus,'S'
+lea dx,statusSakit
+mov ah,09h
+int 21h
+jmp simpan_data
+
+status_izin:
+mov tempStatus,'I'
+lea dx,statusIzin
+mov ah,09h
+int 21h
+
+; =========================================
+; PROSES SIMPAN / UPDATE DATA
+; =========================================
+simpan_data:
+cmp isEditMode, 1
+je proses_update_simpan
+
+; Jalur Data Baru (Insert)
+xor ah,ah
+mov al,jumlahData
+mov si,ax
+
+; Update counter statistik untuk data baru
+cmp tempStatus,'H'
+jne c_skt
+inc jmlHadir
+jmp k_stat
+c_skt:
+cmp tempStatus,'S'
+jne c_izn
+inc jmlSakit
+jmp k_stat
+c_izn:
+inc jmlIzin
+k_stat:
+
+; Simpan NIS (5 byte basis)
+push si
+mov bx, si
+mov bh, 0
+mov ax, 5
+mul bx
+lea di, dataNIS
+add di, ax
+lea si, tempNIS
+mov cx, 5
+copyNIS:
+mov al,[si]
+mov [di],al
+inc si
+inc di
+loop copyNIS
+pop si
+
+jmp copy_biodata_sisa
+
+proses_update_simpan:
+; Jalur Update Data Lama
+xor ah, ah
+mov al, indeksEdit
+mov si, ax
+
+; Kurangi counter statistik lama sebelum diganti
+mov al, dataStatus[si]
+cmp al, 'H'
+jne u_skt
+dec jmlHadir
+jmp k_min_stat
+u_skt:
+cmp al, 'S'
+jne u_izn
+dec jmlSakit
+jmp k_min_stat
+u_izn:
+dec jmlIzin
+k_min_stat:
+
+; Tambah counter statistik baru
+cmp tempStatus,'H'
+jne u_add_skt
+inc jmlHadir
+jmp copy_biodata_sisa
+u_add_skt:
+cmp tempStatus,'S'
+jne u_add_izn
+inc jmlSakit
+jmp copy_biodata_sisa
+u_add_izn:
+inc jmlIzin
+
+copy_biodata_sisa:
+mov al,tempStatus
+mov dataStatus[si],al
+
+mov al,tempMapel
+mov dataMapel[si],al
+
+mov al,tempKelas
+mov dataKelas[si],al
+
+; Simpan String Nama (25 byte basis)
+push si
+mov bx, si
+mov bh, 0
+mov ax, 25
+mul bx
+lea di,dataNama
+add di,ax
+lea si,tempNama
+mov cx,25
+copyNama:
+mov al,[si]
+mov [di],al
+inc si
+inc di
+loop copyNama
+pop si
+
+cmp isEditMode, 1
+je notif_edit
+inc jumlahData
+lea dx,dataSimpan
+jmp cetak_notif
+notif_edit:
+lea dx,dataDiubah
+cetak_notif:
+mov ah,09h
+int 21h
+jmp menu_utama
+
+; =========================================
+; LIHAT REKAP ABSENSI
+; =========================================
+lihat_rekap:
+cmp jumlahData, 0
+jne mulai_rekap
+lea dx,errKosong
+mov ah,09h
+int 21h
+jmp kembali_menu
+
+mulai_rekap:
+lea dx,teksRekap
+mov ah,09h
+int 21h
+lea dx,newline
+mov ah,09h
+int 21h
+
+xor cx,cx
+mov cl,jumlahData
+mov si,0
+
+ulang_rekap:
+; 1. NIS MULTI-DIGIT
+push si
+mov bx, si
+mov bh, 0
+mov ax, 5
+mul bx
+mov dx, offset dataNIS
+add dx, ax
+mov ah, 09h
+int 21h
+pop si
+
+mov dl,' '
+mov ah,02h
+int 21h
+
+; 2. NAMA
+push si
+mov bx,si
+mov bh,0
+mov ax,25
+mul bx
+mov dx, offset dataNama
+add dx,ax
+mov ah,09h
+int 21h
+pop si
+
+mov dl,' '
+mov ah,02h
+int 21h
+
+; 3. KELAS (Menggunakan format MOV DX, OFFSET yang aman)
+mov al,dataKelas[si]
+cmp al,'1'
+je kelas1
+cmp al,'2'
+je kelas2
+cmp al,'3'
+je kelas3
+cmp al,'4'
+je kelas4
+cmp al,'5'
+je kelas5
+cmp al,'6'
+je kelas6
+cmp al,'7'
+je kelas7
+cmp al,'8'
+je kelas8
+cmp al,'9'
+je kelas9
+cmp al,'A'
+je kelasA
+cmp al,'B'
+je kelasB
+cmp al,'C'
+je kelasC
+cmp al,'D'
+je kelasD
+cmp al,'E'
+je kelasE
+cmp al,'F'
+je kelasF
+jmp tampilkelas
+
+kelas1: mov dx, offset k1
+jmp tampilkelas
+kelas2: mov dx, offset k2
+jmp tampilkelas
+kelas3: mov dx, offset k3
+jmp tampilkelas
+kelas4: mov dx, offset k4
+jmp tampilkelas
+kelas5: mov dx, offset k5
+jmp tampilkelas
+kelas6: mov dx, offset k6
+jmp tampilkelas
+kelas7: mov dx, offset k7
+jmp tampilkelas
+kelas8: mov dx, offset k8
+jmp tampilkelas
+kelas9: mov dx, offset k9
+jmp tampilkelas
+kelasA: mov dx, offset kA
+jmp tampilkelas
+kelasB: mov dx, offset kB
+jmp tampilkelas
+kelasC: mov dx, offset kC
+jmp tampilkelas
+kelasD: mov dx, offset kD
+jmp tampilkelas
+kelasE: mov dx, offset kE
+jmp tampilkelas
+kelasF: mov dx, offset kF
+
+tampilkelas:
+mov ah,09h
+int 21h
+
+mov dl,' '
+mov ah,02h
+int 21h
+
+; 4. MAPEL
+mov al,dataMapel[si]
+cmp al,'1'
+je mapel1
+cmp al,'2'
+je mapel2
+cmp al,'3'
+je mapel3
+cmp al,'4'
+je mapel4
+cmp al,'5'
+je mapel5
+cmp al,'6'
+je mapel6
+cmp al,'7'
+je mapel7
+cmp al,'8'
+je mapel8
+cmp al,'9'
+je mapel9
+cmp al,'A'
+je mapelA
+jmp tampilmapel
+
+mapel1: mov dx, offset mp1
+jmp tampilmapel
+mapel2: mov dx, offset mp2
+jmp tampilmapel
+mapel3: mov dx, offset mp3
+jmp tampilmapel
+mapel4: mov dx, offset mp4
+jmp tampilmapel
+mapel5: mov dx, offset mp5
+jmp tampilmapel
+mapel6: mov dx, offset mp6
+jmp tampilmapel
+mapel7: mov dx, offset mp7
+jmp tampilmapel
+mapel8: mov dx, offset mp8
+jmp tampilmapel
+mapel9: mov dx, offset mp9
+jmp tampilmapel
+mapelA: mov dx, offset mpA
+
+tampilmapel:
+mov ah,09h
+int 21h
+
+mov dl,' '
+mov ah,02h
+int 21h
+
+; 5. STATUS
+mov al,dataStatus[si]
+cmp al,'H'
+je stH
+cmp al,'S'
+je stS
+cmp al,'I'
+je stI
+jmp tampilstatus
+
+stH: mov dx, offset txtHadir
+jmp tampilstatus
+stS: mov dx, offset txtSakit
+jmp tampilstatus
+stI: mov dx, offset txtIzin
+
+tampilstatus:
+mov ah,09h
+int 21h
+
+lea dx,newline
+mov ah,09h
+int 21h
+
+inc si
+dec cx
+jcxz kembali_menu
+jmp ulang_rekap
+
+kembali_menu:
+jmp menu_utama
+
+; =========================================
+; FITUR CARI SISWA
+; =========================================
+menu_cari_siswa:
+cmp jumlahData, 0
+jne lanjut_cari
+lea dx, errKosong
+mov ah, 09h
+int 21h
+jmp kembali_menu
+
+lanjut_cari:
+lea dx, inputCari
+mov ah, 09h
+int 21h
+lea di, tempCari
+call input_string
+
+xor cx, cx
+mov cl, jumlahData
+mov si, 0
+
+proses_cari:
+push si
+push cx
+
+mov bx, si
+mov bh, 0
+mov ax, 5
+mul bx
+mov si, offset dataNIS
+add si, ax
+lea di, tempCari
+mov cx, 5
+repe cmpsb
+
+pop cx
+pop si
+je data_ketemu
+
+inc si
+loop proses_cari
+
+lea dx, teksTidakKetemu
+mov ah, 09h
+int 21h
+jmp kembali_menu
+
+data_ketemu:
+lea dx, teksKetemu
+mov ah, 09h
+int 21h
+
+lea dx, newline
+mov ah, 09h
+int 21h
+
+; Cetak Data Hasil Pencarian
+push si
+mov bx, si
+mov bh, 0
+mov ax, 5
+mul bx
+mov dx, offset dataNIS
+add dx, ax
+mov ah, 09h         ; Pastikan AH diset ulang ke 09h
+int 21h
+pop si
+
+mov dl, ' '
+mov ah, 02h         ; Gunakan AH=02h untuk cetak spasi
+int 21h
+
+push si
+mov bx, si
+mov bh, 0
+mov ax, 25
+mul bx
+mov dx, offset dataNama
+add dx, ax
+mov ah, 09h         ; Set ke 09h untuk cetak nama
+int 21h
+pop si
+
+mov dl, ' '
+mov ah, 02h
+int 21h
+
+mov al, dataKelas[si]
+cmp al, '1'
+je c_kelas1
+cmp al, '2'
+je c_kelas2
+cmp al, '3'
+je c_kelas3
+cmp al, '4'
+je c_kelas4
+cmp al, '5'
+je c_kelas5
+cmp al, '6'
+je c_kelas6
+cmp al, '7'
+je c_kelas7
+cmp al, '8'
+je c_kelas8
+cmp al, '9'
+je c_kelas9
+cmp al, 'A'
+je c_kelasA
+cmp al, 'B'
+je c_kelasB
+cmp al, 'C'
+je c_kelasC
+cmp al, 'D'
+je c_kelasD
+cmp al, 'E'
+je c_kelasE
+cmp al, 'F'
+je c_kelasF
+jmp c_tampilkelas
+
+c_kelas1: mov dx, offset k1
+jmp c_tampilkelas
+c_kelas2: mov dx, offset k2
+jmp c_tampilkelas
+c_kelas3: mov dx, offset k3
+jmp c_tampilkelas
+c_kelas4: mov dx, offset k4
+jmp c_tampilkelas
+c_kelas5: mov dx, offset k5
+jmp c_tampilkelas
+c_kelas6: mov dx, offset k6
+jmp c_tampilkelas
+c_kelas7: mov dx, offset k7
+jmp c_tampilkelas
+c_kelas8: mov dx, offset k8
+jmp c_tampilkelas
+c_kelas9: mov dx, offset k9
+jmp c_tampilkelas
+c_kelasA: mov dx, offset kA
+jmp c_tampilkelas
+c_kelasB: mov dx, offset kB
+jmp c_tampilkelas
+c_kelasC: mov dx, offset kC
+jmp c_tampilkelas
+c_kelasD: mov dx, offset kD
+jmp c_tampilkelas
+c_kelasE: mov dx, offset kE
+jmp c_tampilkelas
+c_kelasF: mov dx, offset kF
+
+c_tampilkelas:
+mov ah, 09h
+int 21h
+mov dl, ' '
+mov ah, 02h
+int 21h
+
+mov al, dataMapel[si]
+cmp al, '1'
+je c_mapel1
+cmp al, '2'
+je c_mapel2
+cmp al, '3'
+je c_mapel3
+cmp al, '4'
+je c_mapel4
+cmp al, '5'
+je c_mapel5
+cmp al, '6'
+je c_mapel6
+cmp al, '7'
+je c_mapel7
+cmp al, '8'
+je c_mapel8
+cmp al, '9'
+je c_mapel9
+cmp al, 'A'
+je c_mapelA
+jmp c_tampilmapel
+
+c_mapel1: mov dx, offset mp1
+jmp c_tampilmapel
+c_mapel2: mov dx, offset mp2
+jmp c_tampilmapel
+c_mapel3: mov dx, offset mp3
+jmp c_tampilmapel
+c_mapel4: mov dx, offset mp4
+jmp c_tampilmapel
+c_mapel5: mov dx, offset mp5
+jmp c_tampilmapel
+c_mapel6: mov dx, offset mp6
+jmp c_tampilmapel
+c_mapel7: mov dx, offset mp7
+jmp c_tampilmapel
+c_mapel8: mov dx, offset mp8
+jmp c_tampilmapel
+c_mapel9: mov dx, offset mp9
+jmp c_tampilmapel
+c_mapelA: mov dx, offset mpA
+
+c_tampilmapel:
+mov ah, 09h
+int 21h
+mov dl, ' '
+mov ah, 02h
+int 21h
+
+mov al, dataStatus[si]
+cmp al, 'H'
+je c_stH
+cmp al, 'S'
+je c_stS
+cmp al, 'I'
+je c_stI
+jmp c_tampilstatus
+
+c_stH: mov dx, offset txtHadir
+jmp c_tampilstatus
+c_stS: mov dx, offset txtSakit
+jmp c_tampilstatus
+c_stI: mov dx, offset txtIzin
+
+c_tampilstatus:
+mov ah, 09h
+int 21h
+
+lea dx, newline     ; Tambahkan baris baru setelah status selesai dicetak
+mov ah, 09h
+int 21h
+jmp kembali_menu
+
+; =========================================
+; FITUR EDIT DATA SISWA (MENU 5)
+; =========================================
+menu_edit_siswa:
+cmp jumlahData, 0
+jne lanjut_edit
+lea dx, errKosong
+mov ah, 09h
+int 21h
+jmp kembali_menu
+
+lanjut_edit:
+lea dx, inputEdit
+mov ah, 09h
+int 21h
+lea di, tempCari
+call input_string
+
+xor cx, cx
+mov cl, jumlahData
+mov si, 0
+
+proses_cari_edit:
+push si
+push cx
+mov bx, si
+mov bh, 0
+mov ax, 5
+mul bx
+mov si, offset dataNIS
+add si, ax
+lea di, tempCari
+mov cx, 5
+repe cmpsb
+pop cx
+pop si
+je data_edit_ketemu
+
+inc si
+loop proses_cari_edit
+
+lea dx, teksTidakKetemu
+mov ah, 09h
+int 21h
+jmp kembali_menu
+
+data_edit_ketemu:
+mov indeksEdit, bl
+mov isEditMode, 1
+
+lea dx, teksEditMulai
+mov ah, 09h
+int 21h
+
+jmp b_input_nama
+
+; =========================================
+; STATISTIK
+; =========================================
+statistik:
+lea dx,teksStatistik
+mov ah,09h
+int 21h
+
+lea dx,teksHadir
+mov ah,09h
+int 21h
+mov al, jmlHadir
+call print_number
+
+lea dx,teksSakit
+mov ah,09h
+int 21h
+mov al, jmlSakit
+call print_number
+
+lea dx,teksIzin
+mov ah,09h
+int 21h
+mov al, jmlIzin
+call print_number
+
+lea dx,teksTotal
+mov ah,09h
+int 21h
+mov al, jumlahData
+call print_number
+
+lea dx,newline
+mov ah,09h
+int 21h
+jmp menu_utama
+
+; =========================================
+; KELUAR
+; =========================================
+keluar:
+mov ah,4Ch
+int 21h
+main endp
+
+; =========================================
+; PROCEDURE: INPUT STRING
+; =========================================
+input_string proc
+input_lagi:
+mov ah,01h
+int 21h
+cmp al,13
+je selesai_input
+mov [di],al
+inc di
+jmp input_lagi
+selesai_input:
+mov al,'$'
+mov [di],al
+ret
+input_string endp
+
+; =========================================
+; PROCEDURE: PRINT NUMBER
+; =========================================
+print_number proc
+push ax
+push bx
+push cx
+push dx
+
+xor ah, ah
+mov bl, 10
+div bl
+
+mov cx, ax
+
+cmp cl, 0
+je sisa_saja
+mov dl, cl
+add dl, 30h
+mov ah, 02h
+int 21h
+
+sisa_saja:
+mov dl, ch
+add dl, 30h
+mov ah, 02h
+int 21h
+
+pop dx
+pop cx
+pop bx
+pop ax
+ret
+print_number endp
+
+end main
+
+
+
+; [SOURCE]: D:\EMU8086\MySource\ABSENSI_SISWA_MODIF_NEW.asm
